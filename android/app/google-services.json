@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "584426808860",
+    "project_id": "my-otp-login-app-aditya-6467d",
+    "storage_bucket": "my-otp-login-app-aditya-6467d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:584426808860:android:7834917311ac7805b961d9",
+        "android_client_info": {
+          "package_name": "com.example.qis_tech"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCjd-AXp4QI4vp5-H6Bs8YzuT68Vi38Hg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
