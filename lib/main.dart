@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
+import 'db/user_database.dart' as qisUserDb;
 import 'login_page.dart';
 import 'registration_page.dart';
 import 'home_page.dart';
@@ -13,6 +14,8 @@ import 'pages/feedback_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Seed 5 users in local DB if not present
+  await qisUserDb.UserDatabase.instance.seedUsers();
   runApp(const MyApp());
 }
 

@@ -29,6 +29,44 @@ class User {
 }
 
 class UserDatabase {
+  // Seed 5 users if table is empty
+  Future<void> seedUsers() async {
+    final db = await instance.database;
+    final count =
+        Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM users'),
+        ) ??
+        0;
+    if (count == 0) {
+      final users = [
+        User(name: 'Alice', balance: 1000, gender: 'F'),
+        User(name: 'Bob', balance: 1500, gender: 'M'),
+        User(name: 'Charlie', balance: 2000, gender: 'M'),
+        User(name: 'David', balance: 2500, gender: 'M'),
+        User(name: 'Eve', balance: 3000, gender: 'F'),
+      ];
+      for (final user in users) {
+        await create(user);
+      }
+    }
+  }
+
+  // Get user by name (or add phone field and use phone)
+  Future<User?> getUserByName(String name) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'users',
+      columns: ['id', 'name', 'balance', 'gender'],
+      where: 'name = ?',
+      whereArgs: [name],
+    );
+    if (maps.isNotEmpty) {
+      return User.fromMap(maps.first);
+    } else {
+      return null;
+    }
+  }
+
   static final UserDatabase instance = UserDatabase._init();
   static Database? _database;
 

@@ -220,30 +220,13 @@ class _BalanceHeroCard extends StatelessWidget {
               ],
             ),
           ),
-          Row(
-            children: [
-              TextButton.icon(
-                onPressed: onCheckBalance,
-                icon: const Icon(Icons.add, color: Colors.white70, size: 18),
-                label: const Text(
-                  'Add to Wallet',
-                  style: TextStyle(color: Colors.white70),
-                ),
-              ),
-              const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: onMiniStatement,
-                icon: const Icon(
-                  Icons.receipt_long,
-                  color: Colors.white70,
-                  size: 18,
-                ),
-                label: const Text(
-                  'Mini Statement',
-                  style: TextStyle(color: Colors.white70),
-                ),
-              ),
-            ],
+          TextButton.icon(
+            onPressed: onCheckBalance,
+            icon: const Icon(Icons.add, color: Colors.white70, size: 18),
+            label: const Text(
+              'Add to Wallet',
+              style: TextStyle(color: Colors.white70),
+            ),
           ),
         ],
       ),
