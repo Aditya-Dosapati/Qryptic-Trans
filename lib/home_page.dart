@@ -14,6 +14,7 @@ import 'pages/alerts_page.dart';
 import 'widgets/profile_drawer.dart';
 import 'pages/feedback_page.dart';
 import 'pages/mini_statement_page.dart';
+import 'db/user_database.dart' as localdb;
 //import 'data/local_db.dart';
 
 class HomePage extends StatefulWidget {
@@ -23,12 +24,18 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage>
+    with AutomaticKeepAliveClientMixin {
   int _index = 0;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  // Cache for better performance
+  @override
+  bool get wantKeepAlive => true;
+
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Scaffold(
       key: _scaffoldKey,
       extendBody: true,
@@ -133,22 +140,37 @@ class _HomePageState extends State<HomePage> {
   void _openToMobile() => Navigator.of(
     context,
   ).push(MaterialPageRoute(builder: (_) => const ToMobilePage()));
-  void _openToSelf() => Navigator.of(
-    context,
-  ).push(MaterialPageRoute(builder: (_) => AddToSelfPage(userId: 1)));
+  Future<void> _openToSelf() async {
+    final user = await localdb.UserDatabase.instance.readOrSeedFirstUser();
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => AddToSelfPage(userId: user.id ?? 1)),
+    );
+  }
 
-  void _openAddMoney() => Navigator.of(
-    context,
-  ).push(MaterialPageRoute(builder: (_) => AddMoneyPage(userId: 1)));
+  Future<void> _openAddMoney() async {
+    final user = await localdb.UserDatabase.instance.readOrSeedFirstUser();
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => AddMoneyPage(userId: user.id ?? 1)),
+    );
+  }
+
   void _openCheckBalance() => Navigator.of(
     context,
   ).push(MaterialPageRoute(builder: (_) => const CheckBalancePage()));
   void _openViewAll() => Navigator.of(
     context,
   ).push(MaterialPageRoute(builder: (_) => const ViewAllPage()));
-  void _openMiniStatement() => Navigator.of(
-    context,
-  ).push(MaterialPageRoute(builder: (_) => const MiniStatementPage(userId: 1)));
+  Future<void> _openMiniStatement() async {
+    final user = await localdb.UserDatabase.instance.readOrSeedFirstUser();
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MiniStatementPage(userId: user.id ?? 1),
+      ),
+    );
+  }
 }
 
 // === Widgets ===

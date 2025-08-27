@@ -47,6 +47,7 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const _AuthGate(),
+        '/login': (context) => const LoginPage(),
         '/home': (context) => const HomePage(),
         '/search': (context) => const SearchPage(),
         '/alerts': (context) => const AlertsPage(),
@@ -95,3 +96,5 @@ class _AuthGate extends StatelessWidget {
     );
   }
 }
+
+// http://localhost:5000/generate-otp

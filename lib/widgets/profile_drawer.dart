@@ -1,11 +1,83 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../db/user_database.dart' as localdb;
-// TODO: Replace static profile details with the first user in Hive box (e.g., box.getAt(0)).
-// Display name, email, and role dynamically instead of hardcoding.
 
-class ProfileDrawer extends StatelessWidget {
+class ProfileDrawer extends StatefulWidget {
   const ProfileDrawer({super.key});
+
+  @override
+  State<ProfileDrawer> createState() => _ProfileDrawerState();
+}
+
+class _ProfileDrawerState extends State<ProfileDrawer> {
+  // Cache user data to prevent repeated database calls
+  localdb.User? _cachedUser;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    if (_cachedUser == null) {
+      try {
+        _cachedUser = await localdb.UserDatabase.instance.readOrSeedFirstUser();
+      } catch (e) {
+        debugPrint('Error loading user: $e');
+      }
+    }
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Widget _buildProfileHeader() {
+    if (_isLoading) {
+      return const UserAccountsDrawerHeader(
+        decoration: BoxDecoration(color: Colors.transparent),
+        currentAccountPicture: CircleAvatar(
+          backgroundColor: Colors.white24,
+          child: Icon(Icons.person, color: Colors.deepPurple),
+        ),
+        accountName: Text("Loading..."),
+        accountEmail: Text(""),
+      );
+    }
+
+    final user = _cachedUser;
+    if (user == null) {
+      return const UserAccountsDrawerHeader(
+        decoration: BoxDecoration(color: Colors.transparent),
+        currentAccountPicture: CircleAvatar(
+          backgroundColor: Colors.orange,
+          child: Icon(Icons.warning, color: Colors.white),
+        ),
+        accountName: Text("Fallback User"),
+        accountEmail: Text("Please restart app"),
+      );
+    }
+
+    final String avatarImg =
+        user.gender.toLowerCase() == 'm' || user.gender.toLowerCase() == 'male'
+        ? 'assets/images/male.jpg'
+        : 'assets/images/female.jpg';
+
+    return UserAccountsDrawerHeader(
+      decoration: const BoxDecoration(color: Colors.transparent),
+      currentAccountPicture: CircleAvatar(
+        backgroundImage: AssetImage(avatarImg),
+        onBackgroundImageError: (_, __) {},
+        child: Text(user.name.substring(0, 1).toUpperCase()),
+      ),
+      accountName: Text(
+        user.name,
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+      accountEmail: Text(user.phone, style: const TextStyle(fontSize: 14)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,52 +94,8 @@ class ProfileDrawer extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔹 Profile Header
-            FutureBuilder<List<localdb.User>>(
-              future: localdb.UserDatabase.instance.readAllUsers(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const UserAccountsDrawerHeader(
-                    decoration: BoxDecoration(color: Colors.transparent),
-                    currentAccountPicture: CircleAvatar(
-                      backgroundColor: Colors.white24,
-                      child: Icon(Icons.person, color: Colors.deepPurple),
-                    ),
-                    accountName: Text("Loading..."),
-                    accountEmail: Text(""),
-                  );
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const UserAccountsDrawerHeader(
-                    decoration: BoxDecoration(color: Colors.transparent),
-                    currentAccountPicture: CircleAvatar(
-                      backgroundColor: Colors.white24,
-                      child: Icon(Icons.person, color: Colors.deepPurple),
-                    ),
-                    accountName: Text("No User"),
-                    accountEmail: Text(""),
-                  );
-                }
-                final user = snapshot.data!.first;
-                return UserAccountsDrawerHeader(
-                  decoration: const BoxDecoration(color: Colors.transparent),
-                  currentAccountPicture: const CircleAvatar(
-                    backgroundImage: AssetImage("assets/images/profile.jpg"),
-                  ),
-                  accountName: Text(
-                    user.name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  accountEmail: Text(
-                    user.gender,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                );
-              },
-            ),
+            // 🔹 Profile Header - Now cached for better performance
+            _buildProfileHeader(),
 
             // 🔹 Menu Items
             ListTile(

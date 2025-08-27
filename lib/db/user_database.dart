@@ -4,71 +4,66 @@ import 'package:path/path.dart';
 class User {
   final int? id;
   final String name;
+  final String phone;
   final double balance;
   final String gender;
 
   User({
     this.id,
     required this.name,
+    required this.phone,
     required this.balance,
     required this.gender,
   });
 
   Map<String, dynamic> toMap() {
-    return {'id': id, 'name': name, 'balance': balance, 'gender': gender};
+    return {
+      'id': id,
+      'name': name,
+      'phone': phone,
+      'balance': balance,
+      'gender': gender,
+    };
   }
 
   factory User.fromMap(Map<String, dynamic> map) {
     return User(
       id: map['id'],
       name: map['name'],
+      phone: map['phone'],
       balance: map['balance'],
       gender: map['gender'],
     );
   }
 }
 
-class UserDatabase {
-  // Seed 5 users if table is empty
-  Future<void> seedUsers() async {
-    final db = await instance.database;
-    final count =
-        Sqflite.firstIntValue(
-          await db.rawQuery('SELECT COUNT(*) FROM users'),
-        ) ??
-        0;
-    if (count == 0) {
-      final users = [
-        User(name: 'Alice', balance: 1000, gender: 'F'),
-        User(name: 'Bob', balance: 1500, gender: 'M'),
-        User(name: 'Charlie', balance: 2000, gender: 'M'),
-        User(name: 'David', balance: 2500, gender: 'M'),
-        User(name: 'Eve', balance: 3000, gender: 'F'),
-      ];
-      for (final user in users) {
-        await create(user);
-      }
-    }
-  }
-
-  // Get user by name (or add phone field and use phone)
-  Future<User?> getUserByName(String name) async {
-    final db = await instance.database;
-    final maps = await db.query(
-      'users',
-      columns: ['id', 'name', 'balance', 'gender'],
-      where: 'name = ?',
-      whereArgs: [name],
+extension UserCopy on User {
+  User copyWith({
+    int? id,
+    String? name,
+    String? phone,
+    double? balance,
+    String? gender,
+  }) {
+    return User(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      phone: phone ?? this.phone,
+      balance: balance ?? this.balance,
+      gender: gender ?? this.gender,
     );
-    if (maps.isNotEmpty) {
-      return User.fromMap(maps.first);
-    } else {
-      return null;
-    }
   }
+}
 
+class UserDatabase {
   static final UserDatabase instance = UserDatabase._init();
   static Database? _database;
+
+  // Cache for better performance
+  static User? _cachedFirstUser;
+  static List<User>? _cachedAllUsers;
+  static DateTime? _lastCacheUpdate;
+  static const Duration _cacheExpiry = Duration(minutes: 5);
 
   UserDatabase._init();
 
@@ -81,7 +76,12 @@ class UserDatabase {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: _upgradeDB,
+    );
   }
 
   Future _createDB(Database db, int version) async {
@@ -89,10 +89,55 @@ class UserDatabase {
       CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
+        phone TEXT NOT NULL,
         balance REAL NOT NULL,
         gender TEXT NOT NULL
       )
     ''');
+  }
+
+  Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Drop and recreate table to ensure phone and gender columns exist
+      await db.execute('DROP TABLE IF EXISTS users');
+      await _createDB(db, newVersion);
+    }
+  }
+
+  Future<void> seedUsers() async {
+    final db = await instance.database;
+    final count =
+        Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM users'),
+        ) ??
+        0;
+    if (count == 0) {
+      final users = [
+        User(name: 'ADI D', phone: '8332034345', balance: 100000, gender: 'M'),
+        User(name: 'Bob', phone: '9000000002', balance: 1500, gender: 'M'),
+        User(name: 'Charlie', phone: '9000000003', balance: 2000, gender: 'M'),
+        User(name: 'David', phone: '9000000004', balance: 2500, gender: 'M'),
+        User(name: 'Eve', phone: '9000000005', balance: 3000, gender: 'F'),
+      ];
+      for (final user in users) {
+        await create(user);
+      }
+    }
+  }
+
+  Future<User?> getUserByName(String name) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'users',
+      columns: ['id', 'name', 'phone', 'balance', 'gender'],
+      where: 'name = ?',
+      whereArgs: [name],
+    );
+    if (maps.isNotEmpty) {
+      return User.fromMap(maps.first);
+    } else {
+      return null;
+    }
   }
 
   Future<User> create(User user) async {
@@ -105,7 +150,7 @@ class UserDatabase {
     final db = await instance.database;
     final maps = await db.query(
       'users',
-      columns: ['id', 'name', 'balance', 'gender'],
+      columns: ['id', 'name', 'phone', 'balance', 'gender'],
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -120,6 +165,63 @@ class UserDatabase {
     final db = await instance.database;
     final result = await db.query('users');
     return result.map((map) => User.fromMap(map)).toList();
+  }
+
+  Future<User?> readFirstUser() async {
+    final db = await instance.database;
+    final result = await db.query('users', orderBy: 'id ASC', limit: 1);
+    if (result.isEmpty) return null;
+    return User.fromMap(result.first);
+  }
+
+  /// Returns the first user with caching, seeding defaults if the table is empty.
+  Future<User> readOrSeedFirstUser() async {
+    try {
+      // Check cache first
+      if (_cachedFirstUser != null &&
+          _lastCacheUpdate != null &&
+          DateTime.now().difference(_lastCacheUpdate!) < _cacheExpiry) {
+        return _cachedFirstUser!;
+      }
+
+      // Force seed first to ensure we have users
+      await seedUsers();
+
+      final existing = await readFirstUser();
+      if (existing != null) {
+        // Update cache
+        _cachedFirstUser = existing;
+        _lastCacheUpdate = DateTime.now();
+        return existing;
+      }
+
+      // Fallback: create a minimal default user
+      final created = await create(
+        User(
+          name: 'Guest User',
+          phone: '1234567890',
+          balance: 1000,
+          gender: 'M',
+        ),
+      );
+
+      // Cache the created user
+      _cachedFirstUser = created;
+      _lastCacheUpdate = DateTime.now();
+      return created;
+    } catch (e) {
+      // Emergency fallback
+      print('Database error: $e');
+      final created = await create(
+        User(
+          name: 'Emergency User',
+          phone: '0000000000',
+          balance: 500,
+          gender: 'M',
+        ),
+      );
+      return created;
+    }
   }
 
   Future<int> update(User user) async {
@@ -140,16 +242,5 @@ class UserDatabase {
   Future close() async {
     final db = await instance.database;
     db.close();
-  }
-}
-
-extension UserCopy on User {
-  User copyWith({int? id, String? name, double? balance, String? gender}) {
-    return User(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      balance: balance ?? this.balance,
-      gender: gender ?? this.gender,
-    );
   }
 }

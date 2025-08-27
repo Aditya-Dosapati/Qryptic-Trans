@@ -1,3 +1,5 @@
+import '../db/user_database.dart';
+
 class TransactionModel {
   final double amount;
   final String description;
@@ -22,4 +24,28 @@ class UserModel {
     required this.balance,
     required this.transactions,
   });
+
+  // Convert from User (db) to UserModel (UI)
+  factory UserModel.fromUser(
+    User user, {
+    List<TransactionModel>? transactions,
+  }) {
+    return UserModel(
+      id: user.id ?? 0,
+      name: user.name,
+      balance: user.balance,
+      transactions: transactions ?? [],
+    );
+  }
+
+  // Convert from UserModel (UI) to User (db)
+  User toUser({String? phone, String? gender}) {
+    return User(
+      id: id,
+      name: name,
+      phone: phone ?? '',
+      balance: balance,
+      gender: gender ?? '',
+    );
+  }
 }
