@@ -60,10 +60,7 @@ class UserDatabase {
   static Database? _database;
 
   // Cache for better performance
-  static User? _cachedFirstUser;
-  static List<User>? _cachedAllUsers;
-  static DateTime? _lastCacheUpdate;
-  static const Duration _cacheExpiry = Duration(minutes: 5);
+  // Cache removed to avoid stale reads
 
   UserDatabase._init();
 
@@ -78,7 +75,7 @@ class UserDatabase {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -101,6 +98,16 @@ class UserDatabase {
       // Drop and recreate table to ensure phone and gender columns exist
       await db.execute('DROP TABLE IF EXISTS users');
       await _createDB(db, newVersion);
+    }
+    if (oldVersion < 3) {
+      // One-time adjustment: set the first (primary) user's balance to ₹1500
+      await db.execute('''
+        UPDATE users
+        SET balance = 1500
+        WHERE id = (
+          SELECT id FROM users ORDER BY id ASC LIMIT 1
+        )
+      ''');
     }
   }
 
@@ -143,6 +150,8 @@ class UserDatabase {
   Future<User> create(User user) async {
     final db = await instance.database;
     final id = await db.insert('users', user.toMap());
+    // Invalidate cache so subsequent reads reflect latest data
+    _invalidateCache();
     return user.copyWith(id: id);
   }
 
@@ -177,21 +186,11 @@ class UserDatabase {
   /// Returns the first user with caching, seeding defaults if the table is empty.
   Future<User> readOrSeedFirstUser() async {
     try {
-      // Check cache first
-      if (_cachedFirstUser != null &&
-          _lastCacheUpdate != null &&
-          DateTime.now().difference(_lastCacheUpdate!) < _cacheExpiry) {
-        return _cachedFirstUser!;
-      }
-
-      // Force seed first to ensure we have users
+      // Ensure we have users
       await seedUsers();
 
       final existing = await readFirstUser();
       if (existing != null) {
-        // Update cache
-        _cachedFirstUser = existing;
-        _lastCacheUpdate = DateTime.now();
         return existing;
       }
 
@@ -205,9 +204,6 @@ class UserDatabase {
         ),
       );
 
-      // Cache the created user
-      _cachedFirstUser = created;
-      _lastCacheUpdate = DateTime.now();
       return created;
     } catch (e) {
       // Emergency fallback
@@ -226,21 +222,30 @@ class UserDatabase {
 
   Future<int> update(User user) async {
     final db = await instance.database;
-    return db.update(
+    final result = await db.update(
       'users',
       user.toMap(),
       where: 'id = ?',
       whereArgs: [user.id],
     );
+    // Invalidate cache so subsequent reads reflect latest balance
+    _invalidateCache();
+    return result;
   }
 
   Future<int> delete(int id) async {
     final db = await instance.database;
-    return await db.delete('users', where: 'id = ?', whereArgs: [id]);
+    final result = await db.delete('users', where: 'id = ?', whereArgs: [id]);
+    // Invalidate cache after deletion
+    _invalidateCache();
+    return result;
   }
 
   Future close() async {
     final db = await instance.database;
     db.close();
   }
+
+  // --- Cache helpers ---
+  void _invalidateCache() {}
 }

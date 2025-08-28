@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../db/user_database.dart' as localdb;
+import '../services/otp_service.dart';
 
 // Custom color palette
 class AppColors {
   static const Color primaryPurple = Color(0xFF6A1B9A);
   static const Color accentViolet = Color(0xFF8E24AA);
   static const Color softLavender = Color(0xFFE1BEE7);
-  static const Color textDark = Color(0xFF212121);
+  static const Color textDark = Color.fromARGB(255, 255, 255, 255);
   static const Color textLight = Color(0xFF757575);
   static const Color backgroundWhite = Color(0xFFFFFFFF);
 }
@@ -22,22 +23,24 @@ class AddToSelfPage extends StatefulWidget {
 class _AddToSelfPageState extends State<AddToSelfPage> {
   final _amountCtrl = TextEditingController();
 
-  Future<void> _addToSelf() async {
-    final amount = double.tryParse(_amountCtrl.text.trim());
-    if (amount == null || amount <= 0) {
-      _snack('Enter a valid amount');
-      return;
-    }
-    final user = await localdb.UserDatabase.instance.readUser(widget.userId);
-    if (user == null) {
-      _snack('User not found');
-      return;
-    }
-    // For demo, treat "to self" as adding to wallet
-    final updated = user.copyWith(balance: user.balance + amount);
-    await localdb.UserDatabase.instance.update(updated);
-    _snack('Added to self wallet!');
-    Navigator.of(context).pop(true);
+  Future<void> _confirmAndOtp(double amount) async {
+    await OtpService.showOtpFlow(
+      context: context,
+      title: 'Verify Add to Self',
+      onVerified: () async {
+        final user = await localdb.UserDatabase.instance.readUser(
+          widget.userId,
+        );
+        if (user == null) {
+          _snack('User not found');
+          return;
+        }
+        final updated = user.copyWith(balance: user.balance + amount);
+        await localdb.UserDatabase.instance.update(updated);
+        if (!mounted) return;
+        Navigator.of(context).pop(true);
+      },
+    );
   }
 
   void _showInputDialog(BuildContext context, String walletType) {
@@ -60,11 +63,16 @@ class _AddToSelfPageState extends State<AddToSelfPage> {
               child: const Text('Cancel'),
               onPressed: () => Navigator.pop(context),
             ),
-            TextButton(
+            ElevatedButton(
               child: const Text('Confirm'),
               onPressed: () {
+                final amount = double.tryParse(_amountCtrl.text.trim());
+                if (amount == null || amount <= 0) {
+                  _snack('Enter a valid amount');
+                  return;
+                }
                 Navigator.pop(context);
-                _addToSelf();
+                _confirmAndOtp(amount);
               },
             ),
           ],

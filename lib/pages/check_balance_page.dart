@@ -8,7 +8,7 @@ class AppColors {
   static const Color primaryPurple = Color(0xFF6A1B9A);
   static const Color accentViolet = Color(0xFF8E24AA);
   static const Color softLavender = Color(0xFFE1BEE7);
-  static const Color textDark = Color(0xFF212121);
+  static const Color textDark = Color.fromARGB(255, 255, 255, 255);
   static const Color textLight = Color(0xFF757575);
   static const Color backgroundWhite = Color(0xFFFFFFFF);
 }

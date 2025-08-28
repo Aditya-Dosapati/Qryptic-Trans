@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../db/user_database.dart' as localdb;
+import '../services/otp_service.dart';
 
 class AddMoneyPage extends StatefulWidget {
   final int userId;
@@ -19,18 +20,28 @@ class _AddMoneyPageState extends State<AddMoneyPage> {
       _snack('Enter a valid amount');
       return;
     }
-    setState(() => _busy = true);
-    final user = await localdb.UserDatabase.instance.readUser(widget.userId);
-    if (user == null) {
-      _snack('User not found');
-      setState(() => _busy = false);
-      return;
-    }
-    final updated = user.copyWith(balance: user.balance + amount);
-    await localdb.UserDatabase.instance.update(updated);
-    _snack('Money added successfully!');
-    setState(() => _busy = false);
-    Navigator.of(context).pop(true);
+    // OTP verification before applying the credit
+    await OtpService.showOtpFlow(
+      context: context,
+      title: 'Verify Add Money',
+      onVerified: () async {
+        setState(() => _busy = true);
+        final user = await localdb.UserDatabase.instance.readUser(
+          widget.userId,
+        );
+        if (user == null) {
+          _snack('User not found');
+          setState(() => _busy = false);
+          return;
+        }
+        final updated = user.copyWith(balance: user.balance + amount);
+        await localdb.UserDatabase.instance.update(updated);
+        _snack('Money added successfully!');
+        setState(() => _busy = false);
+        if (!mounted) return;
+        Navigator.of(context).pop(true);
+      },
+    );
   }
 
   void _snack(String msg) {

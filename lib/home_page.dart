@@ -28,10 +28,23 @@ class _HomePageState extends State<HomePage>
     with AutomaticKeepAliveClientMixin {
   int _index = 0;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  double? _balance;
 
   // Cache for better performance
   @override
   bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBalance();
+  }
+
+  Future<void> _loadBalance() async {
+    final user = await localdb.UserDatabase.instance.readOrSeedFirstUser();
+    if (!mounted) return;
+    setState(() => _balance = (user.balance as num).toDouble());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +71,19 @@ class _HomePageState extends State<HomePage>
               );
             },
           ),
+          PopupMenuButton<int>(
+            onSelected: (v) async {
+              if (v == 1500) {
+                await _setPrimaryTo1500();
+              }
+            },
+            itemBuilder: (ctx) => const [
+              PopupMenuItem(
+                value: 1500,
+                child: Text('Set Primary Wallet = ₹1500 (dev)'),
+              ),
+            ],
+          ),
         ],
       ),
 
@@ -79,6 +105,7 @@ class _HomePageState extends State<HomePage>
                 _BalanceHeroCard(
                   onCheckBalance: _openAddMoney,
                   onMiniStatement: _openMiniStatement,
+                  amountText: '₹${(_balance ?? 0).toStringAsFixed(2)}',
                 ),
                 const SizedBox(height: 16),
                 _QuickActions(
@@ -137,23 +164,31 @@ class _HomePageState extends State<HomePage>
   void _openScan() => Navigator.of(
     context,
   ).push(MaterialPageRoute(builder: (_) => const ScanNowPage()));
-  void _openToMobile() => Navigator.of(
-    context,
-  ).push(MaterialPageRoute(builder: (_) => const ToMobilePage()));
+  Future<void> _openToMobile() async {
+    final user = await localdb.UserDatabase.instance.readOrSeedFirstUser();
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ToMobilePage(userId: user.id ?? 1)),
+    );
+    await _loadBalance();
+  }
+
   Future<void> _openToSelf() async {
     final user = await localdb.UserDatabase.instance.readOrSeedFirstUser();
     if (!mounted) return;
-    Navigator.of(context).push(
+    await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => AddToSelfPage(userId: user.id ?? 1)),
     );
+    await _loadBalance();
   }
 
   Future<void> _openAddMoney() async {
     final user = await localdb.UserDatabase.instance.readOrSeedFirstUser();
     if (!mounted) return;
-    Navigator.of(context).push(
+    await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => AddMoneyPage(userId: user.id ?? 1)),
     );
+    await _loadBalance();
   }
 
   void _openCheckBalance() => Navigator.of(
@@ -171,15 +206,35 @@ class _HomePageState extends State<HomePage>
       ),
     );
   }
+
+  Future<void> _setPrimaryTo1500() async {
+    try {
+      final user = await localdb.UserDatabase.instance.readOrSeedFirstUser();
+      final updated = user.copyWith(balance: 1500);
+      await localdb.UserDatabase.instance.update(updated);
+      await _loadBalance();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Primary Wallet set to ₹1500')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to set balance: $e')));
+    }
+  }
 }
 
 // === Widgets ===
 class _BalanceHeroCard extends StatelessWidget {
   final VoidCallback onCheckBalance;
   final VoidCallback onMiniStatement;
+  final String amountText;
   const _BalanceHeroCard({
     required this.onCheckBalance,
     required this.onMiniStatement,
+    required this.amountText,
   });
 
   @override
@@ -225,15 +280,15 @@ class _BalanceHeroCard extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
+              children: [
+                const Text(
                   'Primary Wallet',
                   style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Text(
-                  '₹480.55',
-                  style: TextStyle(
+                  amountText,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
