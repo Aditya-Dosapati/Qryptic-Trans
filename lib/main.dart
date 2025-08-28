@@ -39,9 +39,9 @@ class MyApp extends StatelessWidget {
           border: OutlineInputBorder(),
         ),
         colorScheme: ColorScheme.dark(
-          primary: Color(0xFF6A11CB),
-          secondary: Color(0xFF7209B7),
-          background: Color(0xFF2E2A72),
+          primary: Color.fromARGB(255, 215, 74, 228),
+          secondary: Color.fromARGB(255, 109, 40, 165),
+          //background: Color(0xFF2E2A72),
         ),
       ),
       initialRoute: '/',

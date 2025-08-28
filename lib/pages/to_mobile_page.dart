@@ -112,7 +112,10 @@ class _ToMobilePageState extends State<ToMobilePage> {
                     final amt = double.tryParse(_amountCtrl.text.trim())!;
                     _confirmAndOtp(mob, amt);
                   },
-                  child: const Text('Continue'),
+                  child: const Text(
+                    'Continue',
+                    style: TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
+                  ),
                 ),
               ),
             ],

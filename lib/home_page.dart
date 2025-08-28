@@ -299,10 +299,16 @@ class _BalanceHeroCard extends StatelessWidget {
           ),
           TextButton.icon(
             onPressed: onCheckBalance,
-            icon: const Icon(Icons.add, color: Colors.white70, size: 18),
+            style: TextButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 221, 94, 215),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: const StadiumBorder(),
+            ),
+            icon: const Icon(Icons.add, color: Colors.white, size: 18),
             label: const Text(
               'Add to Wallet',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: Colors.white),
             ),
           ),
         ],

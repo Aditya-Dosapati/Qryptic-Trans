@@ -67,6 +67,10 @@ class _AddMoneyPageState extends State<AddMoneyPage> {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color.fromARGB(255, 221, 94, 215),
+                foregroundColor: Colors.white,
+              ),
               onPressed: _busy ? null : _addMoney,
               child: _busy
                   ? const SizedBox(
