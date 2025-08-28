@@ -1,16 +1,73 @@
-# Enhanced OTP Server for Flutter Integration
+"""Enhanced OTP Server for Flutter Integration (Qiskit-based QRNG)
+
+Replaces pseudo-random OTPs with quantum-generated digits using Qiskit Aer.
+Requires:
+    pip install qiskit qiskit-aer
+"""
+
 from flask import Flask, request, jsonify
-import random
 import sys
 from datetime import datetime
+
+# --- Qiskit setup ---
+try:
+        from qiskit import QuantumCircuit, transpile
+        from qiskit_aer import Aer
+        QISKIT_AVAILABLE = True
+except Exception as e:  # ImportError or backend issues
+        QISKIT_AVAILABLE = False
+        _QISKIT_IMPORT_ERROR = e
 
 app = Flask(__name__)
 stored_otp = None
 
+# Build a simple 4-qubit circuit to generate uniform 4-bit bitstrings (0-15)
+if QISKIT_AVAILABLE:
+    NUM_QUBITS = 4
+    _qc = QuantumCircuit(NUM_QUBITS, NUM_QUBITS)
+    _qc.h(range(NUM_QUBITS))
+    _qc.measure(range(NUM_QUBITS), range(NUM_QUBITS))
+    _sim = Aer.get_backend('aer_simulator')
+
+
+def _qrng_number_0_15():
+    """Sample one 4-bit number (0-15) from the quantum circuit."""
+    t_qc = transpile(_qc, _sim)
+    job = _sim.run(t_qc, shots=1)
+    result = job.result()
+    counts = result.get_counts()
+    bitstring = next(iter(counts.keys()))
+    return int(bitstring, 2)
+
+
+def _generate_quantum_otp_4digits():
+    """Generate a 4-digit OTP using quantum randomness, digits 0-9 only."""
+    digits = []
+    while len(digits) < 4:
+        n = _qrng_number_0_15()
+        if n < 10:  # reject 10-15 to keep digits unbiased 0-9
+            digits.append(str(n))
+    return ''.join(digits)
+
 @app.route('/generate-otp', methods=['GET'])
 def generate_otp():
     global stored_otp
-    stored_otp = str(random.randint(1000, 9999))  # Generate 4-digit OTP
+    if not QISKIT_AVAILABLE:
+        msg = (
+            "Qiskit not available. Install with: pip install qiskit qiskit-aer. "
+            f"Import error: {_QISKIT_IMPORT_ERROR}"
+        )
+        print(f"\n[ERROR] {msg}")
+        sys.stdout.flush()
+        return jsonify({"status": "error", "message": msg}), 500
+
+    try:
+        stored_otp = _generate_quantum_otp_4digits()
+    except Exception as e:
+        msg = f"Failed to generate OTP using Qiskit: {e}"
+        print(f"\n[ERROR] {msg}")
+        sys.stdout.flush()
+        return jsonify({"status": "error", "message": msg}), 500
     
     # Enhanced logging with bigger display
     timestamp = datetime.now().strftime("%H:%M:%S")
@@ -25,7 +82,7 @@ def generate_otp():
     
     return jsonify({
         "status": "OTP generated",
-        "message": f"Check terminal for 4-digit OTP",
+        "message": "Check terminal for 4-digit OTP",
         "hint": f"{stored_otp[:2]}**"
     }), 200
 
@@ -51,11 +108,21 @@ def verify_otp():
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({"status": "Flask server is running", "port": 5000}), 200
+    backend = "qiskit-aer" if QISKIT_AVAILABLE else "unavailable"
+    return jsonify({
+        "status": "Flask server is running",
+        "port": 5001,
+        "qrng_backend": backend
+    }), 200
 
 if __name__ == "__main__":
     print("🚀 OTP SERVER STARTING...")
     print("📡 Server URL: http://localhost:5001")
+    if QISKIT_AVAILABLE:
+        print("🧪 Qiskit Aer backend loaded: quantum RNG enabled")
+    else:
+        print("⚠️ Qiskit not available: install 'qiskit' and 'qiskit-aer' to enable QRNG")
+        print(f"    Import error: {_QISKIT_IMPORT_ERROR}")
     print("📱 Ready for Flutter app connections!")
     print("="*60)
     sys.stdout.flush()

@@ -133,10 +133,13 @@ class _ProfileDrawerState extends State<ProfileDrawer> {
 
             // 🔹 Logout Button
             ListTile(
-              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              leading: const Icon(
+                Icons.logout,
+                color: Color.fromARGB(255, 255, 255, 255),
+              ),
               title: const Text(
                 "Logout",
-                style: TextStyle(color: Colors.redAccent),
+                style: TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
               ),
               onTap: () {
                 _showLogoutDialog(context);
@@ -161,7 +164,9 @@ class _ProfileDrawerState extends State<ProfileDrawer> {
             child: const Text("Cancel"),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 243, 121, 216),
+            ),
             onPressed: () async {
               Navigator.of(context).pop(); // close dialog
               await FirebaseAuth.instance.signOut();
